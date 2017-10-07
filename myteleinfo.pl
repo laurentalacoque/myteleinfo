@@ -15,11 +15,6 @@ use Data::Dumper;
 ###############################################
 my $config_file="config.json";
 
-if (($#ARGV != -1) and ($#ARGV != 1)){
-    print STDERR "Usage : $0 [-c <config_file> | --config-file <config_file>]\n"; 
-    exit(1);
-}
-
 if (($ARGV[0] eq "-c") or ($ARGV[0] eq "--config-file")){
     $config_file = $ARGV[1];
 }
@@ -67,6 +62,16 @@ my $day_stat_jeedom_id = $$config{"stats"}{"daily"};
 my $hour_stat_jeedom_id = $$config{"stats"}{"hourly"};
 
 #TODO Add jeedom config parsing here
+my $jeedom_update_url="";
+if ( defined($$config{"jeedom-target"}) and
+    defined($$config{"jeedom-target"}{"host"}) and
+    defined($$config{"jeedom-target"}{"port"}) and
+    defined($$config{"jeedom-target"}{"key"})){
+    my $host = $$config{"jeedom-target"}{"host"};
+    my $port = $$config{"jeedom-target"}{"port"};
+    my $key  = $$config{"jeedom-target"}{"key"};
+    $jeedom_update_url="http://$host:$port/core/api/jeeApi.php?api=$key&type=virtual";
+}
 
 ###############################################
 #   Start the polling loop
@@ -163,12 +168,19 @@ while (1){
 sub update{
     my($tag,$value) = @_;
     my $jeedom_id = $tags{$tag}{"jeedom-id"};
-    
-    print "[$tag] $value -> $jeedom_id\n";
+    update_stats($tag,$value,$jeedom_id);
 }
 sub update_stats{
     my($tag,$value,$id) = @_;
-    print "#[$tag] $value -> $id\n";
+    print "[$tag] $value -> $id\n";
+    if ($tag eq "PTEC"){
+        if($value eq "HP..") {$value=0;}
+        else {$value=1;}
+    }
+    if ($jeedom_update_url and defined($id) and defined($value) ){
+        my $action=$jeedom_update_url."&id=$id&value=$value";
+        `curl -s '$action'`;
+    }
 }
 
 sub check_crc{

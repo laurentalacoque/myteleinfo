@@ -32,9 +32,6 @@
         "ADPS": {
             "precision" : "always",
             "jeedom-id" : 435
-        },
-        "ADCO":{
-            "jeedom-id" : 12
         }
     },
     "stats":{
