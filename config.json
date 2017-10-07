@@ -1,0 +1,41 @@
+{
+    "serial-device": {
+        "path": "/dev/ttyUSB0",
+        "baudrate": 1200,
+        "parity": "even",
+        "databits": 7,
+        "stopbits": 1 
+    },
+
+    "jeedom-target":{
+        "host" : "192.168.0.200",   
+        "port" : "80",
+        "key"  : "jfqksmfjsqklfjsqfksjdflsj"
+    },
+    
+    "tags": {
+        "HCHC" : {
+            "precision" : 100,
+            "jeedom-id" : 144
+        },
+        "HCHP" : {
+            "precision" : 100,
+            "jeedom-id" : 165
+        },
+        "PAPP" : {
+            "precision" : 100,
+            "jeedom-id" : 153
+        },
+        "PTEC": {
+            "jeedom-id" : 434,
+            "precision" : "always"
+        },
+        "ADPS": {
+            "precision" : "always",
+            "jeedom-id" : 435
+        },
+        "ADCO":{
+            "jeedom-id" : 12
+        }
+    }
+}
