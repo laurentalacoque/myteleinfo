@@ -15,11 +15,11 @@
     
     "tags": {
         "HCHC" : {
-            "precision" : 100,
+            "precision" : 50,
             "jeedom-id" : 144
         },
         "HCHP" : {
-            "precision" : 100,
+            "precision" : 50,
             "jeedom-id" : 165
         },
         "PAPP" : {
@@ -27,8 +27,7 @@
             "jeedom-id" : 153
         },
         "PTEC": {
-            "jeedom-id" : 434,
-            "precision" : "always"
+            "jeedom-id" : 434
         },
         "ADPS": {
             "precision" : "always",
@@ -36,6 +35,14 @@
         },
         "ADCO":{
             "jeedom-id" : 12
+        }
+    },
+    "stats":{
+        "hourly":{
+            "jeedom-id": 4
+        },
+        "daily":{
+            "jeedom-id": 5
         }
     }
 }

@@ -63,15 +63,22 @@ foreach my $key(keys $$config{"tags"}){
     }
 }
 
+my $day_stat_jeedom_id = $$config{"stats"}{"daily"};
+my $hour_stat_jeedom_id = $$config{"stats"}{"hourly"};
+
 #TODO Add jeedom config parsing here
-
-print "config:\n";
-print Dumper(\%tags);
-
 
 ###############################################
 #   Start the polling loop
 ###############################################
+my @ts=localtime(time);
+my $today=$ts[3];
+my $today_Wh=0;
+my $hour =$ts[2];
+my $hour_Wh=0;
+my $Wh_hp=0;
+my $Wh_hc=0;
+
 print "opening port ".$serial{"path"}."\n";
 my $port=Device::SerialPort->new($serial{"path"}) or die ("Unable to open serial port\n");
 $port->databits($serial{"databits"});
@@ -83,7 +90,7 @@ print "Starting polling :)\n";
 
 
 $port->are_match(keys %tags);
-print "watching for ".join(":",keys %tags)."\n";
+#print "watching for ".join(":",keys %tags)."\n";
 $port->lookclear();
 my $match;
 while (1){
@@ -103,7 +110,7 @@ while (1){
             my $forcrc="$pattern $1";
             my $crc=$2;
             if (check_crc($forcrc,$crc)){
-            print "$pattern=$current_value\n";
+                #print "$pattern=$current_value\n";
                 if (not defined($tags{$pattern}{"precision"})){
                     #update if value changes
                     if (not($current_value eq $tags{$pattern}{value})) { 
@@ -123,6 +130,31 @@ while (1){
                         update($pattern,$current_value);
                     }
                 }     
+                #update Wh_hp and Wh_hc
+                if ($pattern eq "HCHP") {
+                    $Wh_hp = $current_value;
+                }
+                if ($pattern eq "HCHC") {
+                    $Wh_hc = $current_value;
+                }
+                #update stats
+                @ts=localtime(time);
+                if ($day_stat_jeedom_id and $ts[3] != $today){
+                    #do something once per day
+                    if ($today_Wh != 0) {
+                        update_stats("daily",$Wh_hp+$Wh_hc-$today_Wh,$day_stat_jeedom_id);
+                    }
+                    $today_Wh = $Wh_hp + $Wh_hc;
+                    $today = $ts[3];    
+                }
+                if ($hour_stat_jeedom_id and $ts[2] != $hour){
+                    #do something once per hour
+                    if ($hour_Wh != 0) {
+                        update_stats("hourly",$Wh_hp+$Wh_hc-$hour_stat_jeedom_id);
+                    }
+                    $hour_Wh = $Wh_hp + $Wh_hc;
+                    $hour = $ts[2];
+                }
             }
         }
 #    } while ($match and $match ne "");
@@ -130,7 +162,13 @@ while (1){
 
 sub update{
     my($tag,$value) = @_;
-    print "updating $tag with value $value\n";
+    my $jeedom_id = $tags{$tag}{"jeedom-id"};
+    
+    print "[$tag] $value -> $jeedom_id\n";
+}
+sub update_stats{
+    my($tag,$value,$id) = @_;
+    print "#[$tag] $value -> $id\n";
 }
 
 sub check_crc{
