@@ -38,8 +38,10 @@ Here's a commented version of the configuration file (remove comments to get a v
      "jeedom-target":{
          "host" : "192.168.0.200",
          "port" : "80",
-         //replace the following with your APIKEY (see config)
-         "key"  : "jfqksmfjsqklfjsqfksjdflsj"
+         //replace the following with your APIKEY
+         // the apikey can be found on your virtual equipement main page
+         // there's an "URL de retour" with parameter apikey=<yourapikeyhere>&type=virtual
+         "key"  : "JKyUOOY8cn9WZjg6Ky0GxYn2gR1aWL3m"
      },
      // list of what you want to track
      "tags": {
