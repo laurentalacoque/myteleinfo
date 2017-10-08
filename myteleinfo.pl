@@ -14,10 +14,17 @@ use Data::Dumper;
 #   Parse args                                #
 ###############################################
 my $config_file="config.json";
-
+my $log_file="/dev/null";
 if (($ARGV[0] eq "-c") or ($ARGV[0] eq "--config-file")){
     $config_file = $ARGV[1];
 }
+
+if (($ARGV[2] eq "-l") or ($ARGV[2] eq "--log-file")){
+    $log_file = $ARGV[3];
+}
+
+open(LOG,">",$log_file);
+
 
 ###############################################
 #   Read config file                          #
@@ -37,14 +44,14 @@ my %serial=(
 
 foreach my $key(keys %serial){
     if (defined($$config{"serial-devices"}) and defined($$config{"serial-devices"}{$key})){
-        print "Updating $key\n";
+        print LOG "Updating $key\n";
         $serial{$key} = $$config{"serial-devices"}{$key};
     }
 }
 
 my %tags;
 foreach my $key(keys $$config{"tags"}){
-    print "adding tag $key\n";
+    print LOG "adding tag $key\n";
     $tags{$key}{"value"}=0;
     if (defined($$config{"tags"}{$key}{"precision"})){
         if ($$config{$key}{"tags"}{"precision" eq "always"}){
@@ -84,14 +91,14 @@ my $hour_Wh=0;
 my $Wh_hp=0;
 my $Wh_hc=0;
 
-print "opening port ".$serial{"path"}."\n";
+print LOG "opening port ".$serial{"path"}."\n";
 my $port=Device::SerialPort->new($serial{"path"}) or die ("Unable to open serial port\n");
 $port->databits($serial{"databits"});
 $port->baudrate($serial{"baudrate"});
 $port->parity($serial{"parity"});
 $port->stopbits($serial{"stopbits"});
 
-print "Starting polling :)\n";
+print LOG "Starting polling :)\n";
 
 
 $port->are_match(keys %tags);
@@ -155,7 +162,7 @@ while (1){
                 if ($hour_stat_jeedom_id and $ts[2] != $hour){
                     #do something once per hour
                     if ($hour_Wh != 0) {
-                        update_stats("hourly",$Wh_hp+$Wh_hc-$hour_stat_jeedom_id);
+                        update_stats("hourly",$Wh_hp+$Wh_hc-$hour_Wh,$hour_stat_jeedom_id);
                     }
                     $hour_Wh = $Wh_hp + $Wh_hc;
                     $hour = $ts[2];
@@ -172,14 +179,14 @@ sub update{
 }
 sub update_stats{
     my($tag,$value,$id) = @_;
-    print "[$tag] $value -> $id\n";
+    print LOG "[$tag] $value -> $id\n";
     if ($tag eq "PTEC"){
         if($value eq "HP..") {$value=0;}
         else {$value=1;}
     }
     if ($jeedom_update_url and defined($id) and defined($value) ){
         my $action=$jeedom_update_url."&id=$id&value=$value";
-        `/usr/bin/curl -s '$action'`;
+        print LOG `/usr/bin/curl -s '$action'`;
     }
 }
 
