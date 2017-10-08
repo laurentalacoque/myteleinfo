@@ -10,36 +10,36 @@
     "jeedom-target":{
         "host" : "192.168.0.200",   
         "port" : "80",
-        "key"  : "jfqksmfjsqklfjsqfksjdflsj"
+        "key"  : "CHANGETHIS"
     },
     
     "tags": {
         "HCHC" : {
             "precision" : 50,
-            "jeedom-id" : 144
+            "jeedom-id" : "CHANGETHIS"
         },
         "HCHP" : {
             "precision" : 50,
-            "jeedom-id" : 165
+            "jeedom-id" : "CHANGETHIS"
         },
         "PAPP" : {
             "precision" : 100,
-            "jeedom-id" : 153
+            "jeedom-id" : "CHANGETHIS"
         },
         "PTEC": {
-            "jeedom-id" : 434
+            "jeedom-id" : "CHANGETHIS"
         },
         "ADPS": {
             "precision" : "always",
-            "jeedom-id" : 435
+            "jeedom-id" : "CHANGETHIS"
         }
     },
     "stats":{
         "hourly":{
-            "jeedom-id": 4
+            "jeedom-id": "CHANGETHIS"
         },
         "daily":{
-            "jeedom-id": 5
+            "jeedom-id": "CHANGETHIS"
         }
     }
 }
