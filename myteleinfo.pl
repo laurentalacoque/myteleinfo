@@ -179,7 +179,7 @@ sub update_stats{
     }
     if ($jeedom_update_url and defined($id) and defined($value) ){
         my $action=$jeedom_update_url."&id=$id&value=$value";
-        `curl -s '$action'`;
+        `/usr/bin/curl -s '$action'`;
     }
 }
 
