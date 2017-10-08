@@ -65,8 +65,8 @@ foreach my $key(keys $$config{"tags"}){
     }
 }
 
-my $day_stat_jeedom_id = $$config{"stats"}{"daily"};
-my $hour_stat_jeedom_id = $$config{"stats"}{"hourly"};
+my $day_stat_jeedom_id = $$config{"stats"}{"daily"}{"jeedom-id"};
+my $hour_stat_jeedom_id = $$config{"stats"}{"hourly"}{"jeedom-id"};
 
 #TODO Add jeedom config parsing here
 my $jeedom_update_url="";
