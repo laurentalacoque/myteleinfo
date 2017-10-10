@@ -179,7 +179,7 @@ sub update{
 }
 sub update_stats{
     my($tag,$value,$id) = @_;
-    print LOG "[$tag] $value -> $id\n";
+    printf LOG "%02d:%02d:%02d [$tag:$id] $value\n",$ts[2],$ts[1],$ts[0];
     if ($tag eq "PTEC"){
         if($value eq "HP..") {$value=0;}
         else {$value=1;}
