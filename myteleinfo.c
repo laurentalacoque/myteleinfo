@@ -95,31 +95,6 @@ int check_crc(char* field, int field_length){
 	return 0;
 }
 
-/* look for a \x0A<Field>\x0D delimited field
- * start at *start and no longer that buffer_size
- * return 0 if the field has been found and 0 if not
- * if a field has been found, then *start is the offset of \x0A and 
- * *end is the offset of the \x0D
- */
-int look_for_field(char* buffer, int buffer_size,int *start, int *end){
-	int i=*start;
-	for (i=*start; i<buffer_size; i++){
-		if (buffer[i] == 0x0A) {
-			*start=i;
-			break;
-		}
-	}
-	// if we override, then let's return now
-	if (i==buffer_size) return 0;
-	// we didn't override, let's find the end char
-	for (i=*start; i<buffer_size; i++){
-		if (buffer[i] == 0x0D) {
-			*end=i;
-			return 1;
-		}
-	}
-	return 0;
-}
 /*
  * handle data just acquired in buffer
  * once processed, everything between the end of handled data and count
@@ -127,30 +102,67 @@ int look_for_field(char* buffer, int buffer_size,int *start, int *end){
  * returns the number of unhandled chars
  */
 int handle_data(char* buffer,int count){
-	int i,len;
-	int start,end;
-	// should look for data here
-	// DEBUG
-	char printme[BUFFER_SIZE];
-	snprintf(printme,BUFFER_SIZE,"%s",buffer);
-	len=strlen(printme);
-	for(i=0; i< len; i++){
-		if (printme[i]== 0x02) printme[i] = '{';
-		if (printme[i]== 0x03) printme[i] = '}';
-		if (printme[i]== 0x0A) printme[i] = '\\';
-		if (printme[i]== 0x0D) printme[i] = '/';
-	}
-	printf("[%s\n]",printme);
-	// DEBUG
+	int i;
+    int sof=0;
+    int valid=1;
+    int field_length=0;
+    char field[256];
+    char *tag,*value;
+    // as we are reading serial line by line, 
+    // data should start with edf TAG and end with x0D x0A 
+    // data should start with edf TAG and end with x0D x03 x02 x0A 
+
+    if (buffer[count-1] != 0x0A) {
+        valid=0;
+    } else if ( buffer[count-2] == 0x0D ){
+            valid=1;
+            sof =0;
+            field_length = count-2;
+    } else if ((buffer[count-2] == 0x02) || (buffer[count-3] == 0x03) || (buffer[count-4] == 0x0D)) {
+            sof=1;
+            valid=1;
+            field_length = count-4;
+    } else {
+        valid=0;
+    }
+    
+    if (valid){
+        for(i=0;i<field_length;i++) field[i]=buffer[i];
+        field[field_length]='\0';
+
+        if (check_crc(buffer,field_length)){
+            //valid field found
+            //printf("(V) [%s]\n",field);   
+            //get rid of crc char
+            field[field_length-2]='\0';
+            //look for TAG end
+            tag=field;
+            for(i=0; i < field_length; i++){
+                if (field[i]==' ') {
+                    field[i]='\0';
+                    value=field+i+1;
+                    break;
+                }
+            }
+
+            printf("[%s]=[%s]\n",tag,value);
+            //TODO handle TAG/VALUE here
+
+
+        }
+        else{
+            //invalid field found
+            //printf("(I) [%s]\n",field);   
+            //Silently discard
+
+        }
+        
+    } else {
+        fprintf(stderr,"Invalid frame\n");
+    }
+
 	
-	//find fields
-	start=0;
-	end=0;
-	while (look_for_field(buffer,count,&start,&end)){
-		strncpy(printme,buffer+start+1,end-start-2);
-		printf("\t[[%s]]\n",printme);
-		start=end+1;
-	}
+    
 }
 
 int main (void){
@@ -166,13 +178,13 @@ int main (void){
 
 	while(1){
 		count=read(fd,buffer+charoffset,BUFFER_SIZE-1-charoffset);	
-		if (0 == count){
+		if (count <= 0){
 			//nothing for now, just wait
 			empty_count++;
-		} else if (count < 0) {
-			perror("read error:");
-			close(fd);
-			return 2;
+		//} else if (count < 0) {
+		//	perror("read error:");
+//close(fd);
+//#return 2;
 		} else {
 			empty_count=0;
 			charoffset = handle_data(buffer,count);
