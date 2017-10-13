@@ -86,6 +86,7 @@ Here's a commented version of the configuration file (remove comments to get a v
 ## Bugs
 Sometimes the serial interface simply dies kernel side with no mean to find out when and how on the daemon side.
 A script to periodically killing and restarting this daemon can come handy (e.g. in a root crontab).
-
+```
 pkill -f myteleinfo
 /usr/bin/perl /path/to/daemon/myteleinfo.pl
+```
