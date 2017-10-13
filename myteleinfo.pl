@@ -45,6 +45,8 @@ my %serial=(
     databits => 7
 );
 
+my $usleep_time =50000;
+
 foreach my $key(keys %serial){
     if (defined($$config{"serial-devices"}) and defined($$config{"serial-devices"}{$key})){
         print LOG "Updating $key\n";
@@ -93,7 +95,7 @@ my $hour =$ts[2];
 my $hour_Wh=0;
 my $Wh_hp=0;
 my $Wh_hc=0;
-my $last_read_ts=time;
+my $last_read_time=time;
 
 print LOG "opening port ".$serial{"path"}."\n";
 my $port=Device::SerialPort->new($serial{"path"}) or die ("Unable to open serial port\n");
@@ -123,10 +125,18 @@ while (1){
             (time - $last_read_time > $MAX_WAIT_BETWEEN_READ))
             { reopen_serial_port(); }
         #sleep some time (a 11B message at 12000 bauds => 77ms)
-        usleep(50000);                         
+        usleep($usleep_time);                         
     }
     # New data arrived
-    print LOG "polls: $polls_per_data\n";
+    #print LOG "polls: $polls_per_data\n";
+    if ($polls_per_data <= 2 and $usleep_time > 10000) { 
+        #too slow
+        $usleep_time -= 10000;
+    } elsif ($polls_per_data > 5) {
+        #too fast
+        $usleep_time += 10000;
+    }
+
     $polls_per_data = 0;
     $last_read_time =time; # reset the watchdog
     
