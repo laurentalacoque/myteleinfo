@@ -10,8 +10,7 @@ use Time::HiRes qw (usleep);
 # missing? : sudo apt-get install libdata-dumper-perl
 use Data::Dumper;
 
-my $MAX_WAIT_BETWEEN_READ = 5;
-
+my $MAX_WAIT_BETWEEN_READ = 30;
 ###############################################
 #   Parse args                                #
 ###############################################
@@ -22,11 +21,11 @@ if (($ARGV[0] eq "-c") or ($ARGV[0] eq "--config-file")){
     $config_file = $ARGV[1];
 }
 
+my $LOG=*STDOUT;
 if (($ARGV[2] eq "-l") or ($ARGV[2] eq "--log-file")){
     $log_file = $ARGV[3];
+    open($LOG,">",$log_file);
 }
-
-open(LOG,">",$log_file);
 
 
 ###############################################
@@ -45,18 +44,17 @@ my %serial=(
     databits => 7
 );
 
-my $usleep_time =50000;
 
 foreach my $key(keys %serial){
     if (defined($$config{"serial-devices"}) and defined($$config{"serial-devices"}{$key})){
-        print LOG "Updating $key\n";
+        print $LOG "Updating $key\n";
         $serial{$key} = $$config{"serial-devices"}{$key};
     }
 }
 
 my %tags;
 foreach my $key(keys $$config{"tags"}){
-    print LOG "adding tag $key\n";
+    print $LOG "adding tag $key\n";
     $tags{$key}{"value"}=0;
     if (defined($$config{"tags"}{$key}{"precision"})){
         if ($$config{$key}{"tags"}{"precision" eq "always"}){
@@ -97,61 +95,71 @@ my $Wh_hp=0;
 my $Wh_hc=0;
 my $last_read_time=time;
 
-print LOG "opening port ".$serial{"path"}."\n";
+print $LOG "opening port ".$serial{"path"}."\n";
 my $port=Device::SerialPort->new($serial{"path"}) or die ("Unable to open serial port\n");
 $port->databits($serial{"databits"});
 $port->baudrate($serial{"baudrate"});
 $port->parity($serial{"parity"});
 $port->stopbits($serial{"stopbits"});
+$port->stty_icanon(1);
 
-print LOG "Starting polling :)\n";
+print $LOG "Starting polling :)\n";
 
 #Add wanted TAGS to the watchlist
-$port->are_match(keys %tags);
-$port->lookclear();
+#$port->are_match(keys %tags);
+#$port->are_match('\n');
+#$port->lookclear();
 
 my $polls_per_data=0;
+my $usleep_time =50000;
 #Polling loop
 while (1){
-    my $gotit = "";
+    # scan incoming data until we get a full line
+    my $saw="";
+    my $count=0;
     $polls_per_data = 0;
-    until ("" ne $gotit) {
-        $polls_per_data++;
-        $gotit = $port->streamline;       # poll until data ready
-        die "Aborted without match\n" unless (defined $gotit);
+    while ($count == 0){
+        $polls_per_data ++;
+        ($count,$saw)=$port->read(255); # will read _up to_ 255 chars
         #if there was an error or we timedout, try to reopen the port
         if ( 
-            (not defined($gotit)) or
+            ($count < 0) or
             (time - $last_read_time > $MAX_WAIT_BETWEEN_READ))
-            { reopen_serial_port(); }
+            { 
+                reopen_serial_port(); 
+                $last_read_time=time;
+            }
         #sleep some time (a 11B message at 12000 bauds => 77ms)
         usleep($usleep_time);                         
+
     }
     # New data arrived
-    #print LOG "polls: $polls_per_data\n";
+    #print $LOG "polls: $polls_per_data\n";
     if ($polls_per_data <= 2 and $usleep_time > 10000) { 
         #too slow
         $usleep_time -= 10000;
-    } elsif ($polls_per_data > 5) {
+        #print "$polls_per_data polls => new usleep $usleep_time\n";
+    } elsif ($polls_per_data > 5 and $usleep_time <1000000) {
         #too fast
         $usleep_time += 10000;
+        #print "$polls_per_data polls => new usleep $usleep_time\n";
     }
 
     $polls_per_data = 0;
-    $last_read_time =time; # reset the watchdog
     
-    # we've got data, check for a match
-    my ($match, $after, $pattern, $instead) = $port->lastlook;
-    # input that MATCHED, input AFTER the match, PATTERN that matched
-    # wanted tag is in PATTERN, data and crc are in AFTER
-    if ($after =~ m/ (\S+) (.)\r/) {
-        my $trame="$pattern $1 $2";
-        my $current_value=$1;
-        my $forcrc="$pattern $1";
-        my $crc=$2;
+    if ($saw =~ m/(\S+) (\S+) (.)\r/) {
+        #print $LOG "[$1 $2 $3]\n";
+        my $pattern= $1;
+        my $trame="$pattern $2 $3";
+        my $current_value=$2;
+        my $forcrc="$pattern $2";
+        my $crc=$3;
+        #skip tag if it's not registered
+        next if (not(defined($tags{$pattern})));
         # we have a TAG VALUE CRC triplet, validate CRC
         if (check_crc($forcrc,$crc)){
             #CRC matches
+            #print "CRC match\n";
             #Now check if config has a precision value associated to this tag
             if (not defined($tags{$pattern}{"precision"})){
                 #No precision value => update when value changes
@@ -198,6 +206,7 @@ while (1){
                $hour = $ts[2];
             }
         } #crc check
+        $last_read_time =time; # reset the watchdog
     } # match one tag
 } # infinite loop
 
@@ -208,7 +217,7 @@ sub update{
 }
 sub update_stats{
     my($tag,$value,$id) = @_;
-    printf LOG "%02d:%02d:%02d [$tag:$id] $value\n",$ts[2],$ts[1],$ts[0];
+    printf $LOG "%02d:%02d:%02d [$tag:$id] $value\n",$ts[2],$ts[1],$ts[0];
     #TAG PTEC is a 4 chars value with 'HP..' or 'HC..'
     #we translate this to a boolean
     if ($tag eq "PTEC"){
@@ -218,20 +227,28 @@ sub update_stats{
     #If we have an update URL, get it
     if ($jeedom_update_url and defined($id) and defined($value) ){
         my $action=$jeedom_update_url."&id=$id&value=$value";
-        print LOG `/usr/bin/curl -s '$action'`;
+        print $LOG `/usr/bin/curl -s '$action'`;
     }
 }
 
 sub reopen_serial_port{
     #close port, wait 1 sec and try reopening it
-    print LOG "Reopening serial port\n";
+    print $LOG "Reopening serial port\n";
     $port->close;
-    usleep(1000000);
-    $port=Device::SerialPort->new($serial{"path"}) or die ("Unable to open serial port\n");
-    $port->databits($serial{"databits"});
-    $port->baudrate($serial{"baudrate"});
-    $port->parity($serial{"parity"});
-    $port->stopbits($serial{"stopbits"});
+    $port=0;
+    while (not $port){
+        sleep(1);
+        $port=Device::SerialPort->new($serial{"path"}) ;
+        if ($port) {
+            $port->databits($serial{"databits"});
+            $port->baudrate($serial{"baudrate"});
+            $port->parity($serial{"parity"});
+            $port->stopbits($serial{"stopbits"});
+            $port->stty_icanon(1);
+        } else {
+            print "Unable to open port, waiting 1sec\n";
+        }
+    }
 }
 
 sub check_crc{
