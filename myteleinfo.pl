@@ -9,24 +9,30 @@ use Time::HiRes qw (usleep);
 # debug
 # missing? : sudo apt-get install libdata-dumper-perl
 # use Data::Dumper;
+use Getopt::Long;
+use Pod::Usage;
 
 # TIMEOUT between two successful reads
 my $MAX_WAIT_BETWEEN_READ = 30;
 
+
 ###############################################
 #   Parse args                                #
 ###############################################
-#TODO use GetOpt::Long instead
-my $config_file="config.json";
-my $log_file="/dev/null";
-if (($ARGV[0] eq "-c") or ($ARGV[0] eq "--config-file")){
-    $config_file = $ARGV[1];
+my $config_file="";
+my $log_file="";
+my $help="";
+my $LOG=*STDOUT;
+
+GetOptions("help",\$help,"config-file=s",\$config_file,"log-file=s",\$log_file) or pod2usage(-verbose => 1, -exitval => 1);
+
+if ($help) {
+    pod2usage(-verbose => 1, -exitval => 0);
 }
 
-my $LOG=*STDOUT;
-if (($ARGV[2] eq "-l") or ($ARGV[2] eq "--log-file")){
-    $log_file = $ARGV[3];
-    open($LOG,">",$log_file);
+if ($config_file eq "") { $config_file="config.json";}
+if (not ($log_file eq "")) {
+    open($LOG,">",$log_file) or die ("Unable to open $log_file : $!\n");
 }
 
 
@@ -265,3 +271,42 @@ sub check_crc{
     if ($crc eq chr($sum)) {return 1;}
     return 0;
 }
+
+
+__END__
+
+=head1 NAME
+
+B<myteleinfo> a ErDF teleinformation smart bouncer
+
+=head1 SYNOPSIS
+
+perl myteleinfo [options] 
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<-h | --help>
+
+Print a brief help message and exits.
+
+=item B<-c | --config-file> <config file>
+
+Use <config file> instead of the default config.json
+
+=item B<-l | --log-file> <log file>
+
+Logs everything into <log file> instead of stdout
+
+=back
+
+=head1 DESCRIPTION
+
+B<myteleinfo> will scan French energy provider ErDF power information and will send 
+selected ones to a destination server address.
+This is usefull to track power consumption using a home box like e.g. jeedom
+
+=cut
+
+
