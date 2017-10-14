@@ -8,9 +8,11 @@ use JSON;
 use Time::HiRes qw (usleep);
 # debug
 # missing? : sudo apt-get install libdata-dumper-perl
-use Data::Dumper;
+# use Data::Dumper;
 
+# TIMEOUT between two successful reads
 my $MAX_WAIT_BETWEEN_READ = 30;
+
 ###############################################
 #   Parse args                                #
 ###############################################
